@@ -1,0 +1,50 @@
+package output
+
+type {{$.TableName}} struct {
+{{- range $j, $col := $.Columns }}
+    {{$col.NameCamel}}{{"\t"}}{{$col.Type}}{{"\t"}}`db:"{{$col.Name}}"` {{end}}
+}
+
+type {{$.TableName}}Slice []*{{$.TableName}}
+
+func (r *{{$.TableName}}) Insert(db *sqlx.DB) (err error) {
+	sql := `INSERT INTO {{$.Table}} ({{$.ColumnList}}) 
+	VALUES({{$.BindList}});`
+	_, err = db.Exec(sql, {{$.VarColumnList}})
+	return err
+}
+
+func (r *{{$.TableName}}) Update(db *sqlx.DB) (err error) {
+	if r.Id == 0 {
+		return r.Insert(db)
+	}
+	sql := `UPDATE {{$.Table}} SET {{$.SetList}}
+	WHERE id=?;`
+	_, err = db.Exec(sql, {{$.UpdateList}})
+	return err
+}
+
+func (r *{{$.TableName}}) Delete(db *sqlx.DB) (err error) {
+	if r.Id == 0 {
+		return fmt.Errorf("id = 0")
+	}
+	sql := `DELETE {{$.Table}} WHERE {{$.FieldPK}}=?;`
+	_, err = db.Exec(sql, {{$.VarFieldPK}})
+	return err
+}
+
+func (r *{{$.TableName}}) Find(db *sqlx.DB) (err error) {
+	if {{$.VarFieldPK}} == 0 {
+		return fmt.Errorf("{{$.VarFieldPK}} = 0")
+	}
+	sql := `select * from {{$.Table}} WHERE {{$.FieldPK}}=?;`
+	err = db.Get(r, sql, {{$.VarFieldPK}})
+	return err
+}
+
+func (r *{{$.TableName}}) All(db *sqlx.DB) (out {{$.TableName}}Slice, err error) {
+	out = make({{$.TableName}}Slice, 0)
+	sql := `select * from {{$.Table}} order by {{$.FieldPK}};`
+	err = db.Select(&out, sql)
+	return out, err
+}

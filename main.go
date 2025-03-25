@@ -2,17 +2,17 @@ package main
 
 import (
 	_ "embed"
-	"fmt"
 	"log"
 	"os"
 
-	"github.com/iancoleman/strcase"
 	"github.com/jmoiron/sqlx"
 	_ "modernc.org/sqlite"
 )
 
-//go:embed test.sql
-var testSql string
+//go:embed list_tables.sql
+var listTablesSql string
+
+const output = "output"
 
 func check(err error) {
 	if err != nil {
@@ -21,26 +21,21 @@ func check(err error) {
 }
 
 func main() {
-	db, err := sqlx.Open("sqlite", `C:\!DB\UTSZ\030000527832.db`)
+	db, err := sqlx.Open("sqlite", `M:\!DB\Сидродельня Леврана\2025-03-24\030000855477.db`)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
 	check(err)
 	defer db.Close()
-	row, err := db.Query(testSql)
+
+	os.RemoveAll(output)
+	os.MkdirAll(output, 0644)
+
+	tables := []string{}
+	err = db.Select(&tables, listTablesSql)
 	check(err)
-	f, err := os.Create("model.txt")
-	check(err)
-	defer f.Close()
-	for row.Next() {
-		if columns, err := row.Columns(); err == nil {
-			_, err = fmt.Fprintln(f, "type model struct {")
-			check(err)
-			for _, col := range columns {
-				log.Println(strcase.ToCamel(col))
-				_, err = fmt.Fprintf(f, "  %s: string  `db:\"%s\"`\n", strcase.ToCamel(col), col)
-				check(err)
-			}
-			_, err = fmt.Fprintln(f, "}")
-			check(err)
-			break
-		}
+	for _, table := range tables {
+		err := listColumns(db, table)
+		check(err)
 	}
 }
